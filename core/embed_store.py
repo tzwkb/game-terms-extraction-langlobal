@@ -68,7 +68,6 @@ class EmbedStore:
             batches.append((i, new_terms[i:i + batch_size]))
         total = len(new_terms)
 
-        results = {}
         db_lock = threading.Lock()
         done_count = [0]
 

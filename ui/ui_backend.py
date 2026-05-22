@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import json
+import hashlib
 import threading
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Callable, Optional
+from typing import List, Callable
 import logging
 
 from core.checkpoint import load_meta as load_ckpt_meta
@@ -64,14 +65,11 @@ def _load_persisted_config(cfg: RunConfig):
 
 
 def checkpoint_id(file_bytes: bytes, profile: str) -> str:
-    import hashlib
-    h = hashlib.md5(file_bytes).hexdigest()[:8]
-    return f"src_{profile}_{h}"
+    return f"src_{profile}_{hashlib.md5(file_bytes).hexdigest()[:8]}"
 
 
 def check_checkpoint(file_bytes: bytes, profile: str) -> dict:
     from core.checkpoint import load as ckpt_load
-    import hashlib, json as _json
     h = hashlib.md5(file_bytes).hexdigest()[:8]
     ckpt_root = ROOT / "output" / "_checkpoints"
     if not ckpt_root.exists():
@@ -87,8 +85,7 @@ def check_checkpoint(file_bytes: bytes, profile: str) -> dict:
 
 
 def clear_checkpoint(file_bytes: bytes, profile: str):
-    from core.checkpoint import clear as ckpt_clear
-    import hashlib, shutil
+    import shutil
     h = hashlib.md5(file_bytes).hexdigest()[:8]
     ckpt_root = ROOT / "output" / "_checkpoints"
     if not ckpt_root.exists():
@@ -169,10 +166,6 @@ def remove_model(name: str):
         if name in custom:
             custom.remove(name)
     _save_model_data(data)
-
-
-def is_preset_model(name: str) -> bool:
-    return name in PRESET_MODELS
 
 
 PROFILE_SKELETON = """\
@@ -349,20 +342,6 @@ def get_profile_content(name: str) -> str:
     if p.exists():
         return p.read_text(encoding="utf-8")
     return ""
-
-
-def load_profile_dict(name: str) -> dict:
-    import yaml as _yaml
-    p = ROOT / "profiles" / f"{name}.yaml"
-    if p.exists():
-        return _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-    return {}
-
-
-def save_profile_dict(name: str, data: dict):
-    import yaml as _yaml
-    p = ROOT / "profiles" / f"{name}.yaml"
-    p.write_text(_yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
 
 
 # ═══════════════════════════════════════════════════════════

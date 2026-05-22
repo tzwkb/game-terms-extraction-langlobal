@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import sys
-import os
+import json
+import hashlib
+import shutil
 import tempfile
 from pathlib import Path
 import pandas as pd
@@ -17,7 +19,7 @@ from ui.ui_backend import (
     get_all_models, add_custom_model, remove_model,
     list_profiles, save_uploaded_profile, delete_profile,
     test_api_connection, get_profile_template, get_profile_content,
-    save_persisted_config, check_checkpoint, clear_checkpoint,
+    save_persisted_config, check_checkpoint,
     reset_embed_db, embed_db_term_count,
     load_ckpt_meta,
 )
@@ -251,11 +253,10 @@ elif page_id == "process":
     gl_en_col = st.session_state.get("_gl_en_col", 1)
 
     if src_file and gl_file and not st.session_state.get("_col_detected"):
-        import pandas as _pd
         from core.header_detect import detect_source_column, detect_glossary_columns
         try:
-            df_src = _pd.read_excel(src_file)
-            df_gl = _pd.read_excel(gl_file)
+            df_src = pd.read_excel(src_file)
+            df_gl = pd.read_excel(gl_file)
             d_src = detect_source_column(df_src, cfg.api_key, cfg.api_base)
             d_gl = detect_glossary_columns(df_gl, cfg.api_key, cfg.api_base)
             st.session_state._pending__src_col = d_src["text_col"]
@@ -275,16 +276,14 @@ elif page_id == "process":
                    f"术语列: {gl.get('method','?')}（{gl.get('confidence','?')}）")
 
         if src_file:
-            import pandas as _pd
-            df_src = _pd.read_excel(src_file)
+            df_src = pd.read_excel(src_file)
             src_headers = [str(c) for c in df_src.columns]
             st.selectbox("原文列", range(len(src_headers)),
                          index=min(st.session_state.get("_src_col", 0), len(src_headers) - 1),
                          format_func=lambda i: f"[{i}] {src_headers[i]}",
                          key="_src_col")
         if gl_file:
-            import pandas as _pd
-            df_gl = _pd.read_excel(gl_file)
+            df_gl = pd.read_excel(gl_file)
             gl_headers = [str(c) for c in df_gl.columns]
             c1, c2 = st.columns(2)
             with c1:
@@ -306,12 +305,11 @@ elif page_id == "process":
     ckpt_root = Path("output") / "_checkpoints"
     all_ckpts = []
     if ckpt_root.exists():
-        import json as _json
         for d in sorted(ckpt_root.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
             ckpt_file = d / "checkpoint.json"
             if d.is_dir() and ckpt_file.exists():
                 try:
-                    data = _json.loads(ckpt_file.read_text(encoding="utf-8"))
+                    data = json.loads(ckpt_file.read_text(encoding="utf-8"))
                     if data.get("chunk_idx", 0) > 0:
                         meta = load_ckpt_meta(str(d))
                         all_ckpts.append({
@@ -330,7 +328,6 @@ elif page_id == "process":
 
     # Auto-save uploaded files to matching checkpoint
     if src_file and gl_file and ckpt_root.exists():
-        import hashlib
         h = hashlib.md5(src_file.getvalue()).hexdigest()[:8]
         for d in ckpt_root.iterdir():
             if d.is_dir() and h in d.name and cfg.profile in d.name:
@@ -372,7 +369,6 @@ elif page_id == "process":
                         st.rerun()
                 with col_c3:
                     if st.button("删除", key=f"del_ckpt_{c['name']}", use_container_width=True):
-                        import shutil
                         shutil.rmtree(ckpt_root / c["name"])
                         st.rerun()
 
@@ -455,8 +451,6 @@ elif page_id == "process":
                 st.progress(pct, text=f"{label} — {done}/{total}")
             elif done >= total and total > 0:
                 st.progress(1.0, text=label)
-            elif task.stage in ("starting", "loading", "extracting", "translating"):
-                st.progress(0.0, text=label)
             else:
                 st.progress(0.0, text=label)
 

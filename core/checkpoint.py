@@ -2,14 +2,6 @@ import json, hashlib, shutil, time, tempfile, os
 from pathlib import Path
 
 
-def task_id(source_path: str, profile: str) -> str:
-    h = hashlib.md5()
-    with open(source_path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return f"{Path(source_path).stem}_{profile}_{h.hexdigest()[:8]}"
-
-
 def load(checkpoint_dir: str) -> dict:
     ckpt_file = Path(checkpoint_dir) / "checkpoint.json"
     if not ckpt_file.exists():

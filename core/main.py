@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, os, time, signal, json, re
+import sys, os, time, signal, json, re, random
 import asyncio
 
 if sys.platform == "win32":
@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple
 import pandas as pd
 import yaml
 import jieba
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI
 
 _interrupted = False
 
@@ -25,6 +25,8 @@ from core.checkpoint import load as ckpt_load, save as ckpt_save, save_meta as c
 from core.embed_store import EmbedStore
 import logging
 logger = logging.getLogger("pipeline")
+
+_VAR_RE = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+')
 
 
 def _on_interrupt(sig, frame):
@@ -58,13 +60,6 @@ def load_glossary(path: str, cn_col: int = 0, en_col: int = 1) -> Tuple[dict, se
     return glossary, keys
 
 
-def match_context(term: str, source_texts: List[str]) -> str:
-    for text in source_texts:
-        if term in text:
-            return text.replace("\n", " ").strip()
-    return ""
-
-
 def _batch_match_context(terms: List[dict], source_texts: List[str]) -> None:
     remaining = {t["term"] for t in terms}
     term_context: Dict[str, str] = {}
@@ -84,7 +79,7 @@ def _chunk_texts(texts: List[str], target_chars: int, overlap: int = 3) -> List[
     for t in texts:
         if cur_c + len(t) > target_chars and cur:
             chunks.append("\n\n".join(cur))
-            cur = cur[-overlap:] if len(cur) > overlap else cur[:]
+            cur = cur[-overlap:]
             cur_c = sum(len(s) for s in cur) + (len(cur) - 1) * 2
         cur.append(t)
         cur_c += len(t)
@@ -160,9 +155,7 @@ async def _ner_flash_batch(batch_c, api_key, base_url):
                     return
                 except Exception:
                     if attempt < 7:
-                        import random
-                        jitter = random.uniform(0, delay * 0.5)
-                        await asyncio.sleep(delay + jitter)
+                        await asyncio.sleep(delay + random.uniform(0, delay * 0.5))
                         delay = min(delay * 2, 30)
             results[idx] = ([], [])
 
@@ -230,13 +223,7 @@ def filter_derived_terms(terms: List[dict], address_suffixes: list, glossary_key
         for suffix in suffixes:
             if term.endswith(suffix) and len(term) > len(suffix):
                 stem = term[:-len(suffix)]
-                if stem in term_set:
-                    is_derivative = True
-                    break
-                if len(stem) >= 2 and any(o != term and o.startswith(stem) for o in term_set):
-                    is_derivative = True
-                    break
-                if len(stem) == 1 and any(o != term and o.startswith(stem) for o in term_set):
+                if stem in term_set or any(o != term and o.startswith(stem) for o in term_set):
                     is_derivative = True
                     break
         if not is_derivative:
@@ -316,7 +303,7 @@ def extract_terms(texts: List[str], profile: dict, api_key: str, base_url: str, 
         dt = time.time() - t_batch
         pct = end / len(chunks) * 100
         elapsed = time.time() - t0
-        etc = elapsed / (end) * (len(chunks) - end) if end else 0
+        etc = elapsed / end * (len(chunks) - end) if end else 0
         logger.info(f"[{end}/{len(chunks)}] {pct:.0f}% | +{len(batch_results)} terms, total:{len(results)} | {dt:.0f}s | elapsed:{elapsed/60:.1f}m, ETC:{etc/60:.0f}m")
         if progress_callback:
             progress_callback("extracting", end, len(chunks),
@@ -437,13 +424,11 @@ def run_pipeline(source_path: str, glossary_path: str, profile_name: str = "yany
     texts = df_src.iloc[:, src_col].dropna().astype(str).str.strip().tolist()
     texts = [t for t in texts if t]
     texts = list(dict.fromkeys(texts))
-    _var_re = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+')
-    texts = [_var_re.sub('', t).strip() for t in texts]
+    texts = [_VAR_RE.sub('', t).strip() for t in texts]
     texts = [t for t in texts if t]
     logger.info(f"Source: {len(df_src)} rows -> {len(texts)} after dedup")
     if progress_callback:
         progress_callback("loading", 1, 1, f"{len(texts)} texts loaded, {len(glossary_keys)} glossary terms")
-    if progress_callback:
         progress_callback("extracting", 0, 1, "即将开始提取…")
     logger.info("Extracting terms...")
     extracted = extract_terms(texts, profile, api_key, base_url, model, output_dir=output_dir, raw_dir=raw_dir, checkpoint_dir=checkpoint_dir, glossary_keys=glossary_keys, progress_callback=progress_callback)
