@@ -422,6 +422,7 @@ class ProcessingTask:
         self.results: list = []
         self.error: str | None = None
         self.info: str = ""
+        self.output_dir: str = ""
         self._stop = threading.Event()
         self._cancelling = False
         self._thread: threading.Thread | None = None
@@ -441,6 +442,7 @@ class ProcessingTask:
         self.error = None
         self.results = []
         self.info = ""
+        self.output_dir = ""
         self.stage = "starting"
         self.stage_done = 0
         self.stage_total = 1
@@ -463,8 +465,15 @@ class ProcessingTask:
     def _run(self, source_path: str, glossary_path: str, cfg: RunConfig, on_done,
              src_col: int = 0, gl_cn_col: int = 0, gl_en_col: int = 1, src_bytes: bytes = b""):
         try:
+            import time as _time
             from core.main import run_pipeline
             from core.checkpoint import clear as ckpt_clear
+
+            ts = _time.strftime("%Y%m%d_%H%M%S")
+            out_dir = ROOT / "output" / f"run_{ts}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            self.output_dir = str(out_dir)
+
             ckpt_root = ROOT / "output" / "_checkpoints"
             ckpt_root.mkdir(parents=True, exist_ok=True)
             h = hashlib.md5(src_bytes).hexdigest()[:8]
@@ -475,6 +484,7 @@ class ProcessingTask:
             results = run_pipeline(
                 source_path, glossary_path, cfg.profile,
                 cfg.api_key, cfg.api_base, cfg.model,
+                output_dir=str(out_dir),
                 progress_callback=self._progress,
                 checkpoint_dir=ckpt_dir,
                 src_col=src_col, gl_cn_col=gl_cn_col, gl_en_col=gl_en_col,

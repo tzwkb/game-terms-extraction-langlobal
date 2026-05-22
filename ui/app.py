@@ -472,11 +472,10 @@ elif page_id == "process":
                     st.success(f"完成 — 共提取 {len(task.results)} 条术语")
                     st.session_state.task_results = task.results
                     if not st.session_state.get("_results_saved"):
-                        out_dir = ROOT / "output"
-                        out_dir.mkdir(exist_ok=True)
-                        ts = time.strftime("%Y%m%d_%H%M%S")
-                        pd.DataFrame(task.results).to_excel(
-                            out_dir / f"results_{ts}.xlsx", index=False)
+                        out_path = (Path(task.output_dir) / "results.xlsx"
+                                    if task.output_dir
+                                    else ROOT / "output" / f"results_{time.strftime('%Y%m%d_%H%M%S')}.xlsx")
+                        pd.DataFrame(task.results).to_excel(out_path, index=False)
                         st.session_state._results_saved = True
                 st.session_state.task = None
                 return
@@ -525,18 +524,20 @@ elif page_id == "results":
 
     if results is None or len(results) == 0:
         st.info("当前 Session 暂无结果，请先在「运行」页面执行提取，或加载下方历史文件。")
-        out_dir = ROOT / "output"
+        out_root = ROOT / "output"
         saved = sorted(
-            out_dir.glob("results_*.xlsx"), key=lambda f: f.stat().st_mtime, reverse=True
-        ) if out_dir.exists() else []
+            out_root.glob("run_*/results.xlsx"), key=lambda f: f.stat().st_mtime, reverse=True
+        ) if out_root.exists() else []
         if saved:
             st.subheader("历史结果")
             for f in saved:
+                run_name = f.parent.name
                 ts = datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
                 c1, c2, c3 = st.columns([4, 1, 1])
-                c1.caption(f"`{f.name}` — {ts}")
+                c1.caption(f"`{run_name}` — {ts}")
                 with c2:
-                    st.download_button("下载", data=f.read_bytes(), file_name=f.name,
+                    st.download_button("下载", data=f.read_bytes(),
+                                       file_name=f"{run_name}_results.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                        key=f"dl_{f.name}", use_container_width=True)
                 with c3:
