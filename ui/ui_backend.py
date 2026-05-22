@@ -13,11 +13,7 @@ from dataclasses import dataclass
 from typing import List, Callable
 import logging
 
-import yaml
-from openai import OpenAI
-
-from core.checkpoint import load as ckpt_load, clear as ckpt_clear, load_meta as load_ckpt_meta
-from core.main import run_pipeline
+from core.checkpoint import load as ckpt_load, load_meta as load_ckpt_meta
 
 ROOT = Path(__file__).parent.parent
 
@@ -360,7 +356,8 @@ def list_profiles() -> List[str]:
 
 
 def save_uploaded_profile(filename: str, content: bytes) -> str:
-    yaml.safe_load(content)
+    import yaml as _yaml
+    _yaml.safe_load(content)
     stem = Path(filename).stem
     pdir = ROOT / "profiles"
     pdir.mkdir(exist_ok=True)
@@ -400,6 +397,7 @@ def embed_db_term_count() -> int:
 
 def test_api_connection(cfg: RunConfig) -> tuple:
     try:
+        from openai import OpenAI
         client = OpenAI(api_key=cfg.api_key, base_url=cfg.api_base, timeout=30)
         resp = client.models.list()
         return True, f"Connected — {len(resp.data)} models available"
@@ -465,6 +463,8 @@ class ProcessingTask:
     def _run(self, source_path: str, glossary_path: str, cfg: RunConfig, on_done,
              src_col: int = 0, gl_cn_col: int = 0, gl_en_col: int = 1, src_bytes: bytes = b""):
         try:
+            from core.main import run_pipeline
+            from core.checkpoint import clear as ckpt_clear
             ckpt_root = ROOT / "output" / "_checkpoints"
             ckpt_root.mkdir(parents=True, exist_ok=True)
             h = hashlib.md5(src_bytes).hexdigest()[:8]
