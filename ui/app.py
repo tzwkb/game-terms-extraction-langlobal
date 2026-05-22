@@ -19,6 +19,7 @@ from ui.ui_backend import (
     test_api_connection, get_profile_template, get_profile_content,
     save_persisted_config, check_checkpoint, clear_checkpoint,
     reset_embed_db, embed_db_term_count,
+    load_ckpt_meta,
 )
 
 st.set_page_config(page_title="游戏术语提取工具", page_icon="🎮", layout="wide")
@@ -312,8 +313,7 @@ elif page_id == "process":
                 try:
                     data = _json.loads(ckpt_file.read_text(encoding="utf-8"))
                     if data.get("chunk_idx", 0) > 0:
-                        meta_file = d / "run_meta.json"
-                        meta = _json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.exists() else {}
+                        meta = load_ckpt_meta(str(d))
                         all_ckpts.append({
                             "name": d.name,
                             "chunk_idx": data["chunk_idx"],

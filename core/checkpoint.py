@@ -37,3 +37,20 @@ def clear(checkpoint_dir: str):
     p = Path(checkpoint_dir)
     if p.exists():
         shutil.rmtree(p)
+
+
+def save_meta(checkpoint_dir: str, data: dict):
+    Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+    (Path(checkpoint_dir) / "run_meta.json").write_text(
+        json.dumps(data, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def load_meta(checkpoint_dir: str) -> dict:
+    p = Path(checkpoint_dir) / "run_meta.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}

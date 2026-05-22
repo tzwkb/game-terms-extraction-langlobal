@@ -21,7 +21,7 @@ from core.prompt_base import build_system_prompt, build_user_prompt, build_trans
 from core.llm_extractor import LLMExtractor
 from core.llm_translator import TermTranslator
 from core.logger import setup_logging
-from core.checkpoint import load as ckpt_load, save as ckpt_save
+from core.checkpoint import load as ckpt_load, save as ckpt_save, save_meta as ckpt_save_meta
 from core.embed_store import EmbedStore
 import logging
 logger = logging.getLogger("pipeline")
@@ -414,6 +414,12 @@ def run_pipeline(source_path: str, glossary_path: str, profile_name: str = "yany
     if not output_dir:
         output_dir = "output"
     setup_logging(log_dir=output_dir)
+    if checkpoint_dir:
+        ckpt_save_meta(checkpoint_dir, {
+            "src_col": src_col, "gl_cn_col": gl_cn_col, "gl_en_col": gl_en_col,
+            "src_filename": Path(source_path).name,
+            "gl_filename": Path(glossary_path).name,
+        })
     profile = load_config(profile_name)
     glossary, glossary_keys = load_glossary(glossary_path, cn_col=gl_cn_col, en_col=gl_en_col)
     for gk in glossary_keys:

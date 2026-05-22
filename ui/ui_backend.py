@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import List, Callable, Optional
 import logging
 
+from core.checkpoint import load_meta as load_ckpt_meta
+
 ROOT = Path(__file__).parent.parent
 
 
@@ -508,14 +510,6 @@ class ProcessingTask:
                 shutil.copy2(source_path, src_dst)
             if os.path.abspath(glossary_path) != os.path.abspath(gl_dst):
                 shutil.copy2(glossary_path, gl_dst)
-
-            meta_path = Path(ckpt_dir) / "run_meta.json"
-            meta = {
-                "src_col": src_col, "gl_cn_col": gl_cn_col, "gl_en_col": gl_en_col,
-                "src_filename": Path(source_path).name,
-                "gl_filename": Path(glossary_path).name,
-            }
-            meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
 
             # If source.xlsx already existed (old checkpoint), use it instead
             # so _batch_match_context matches the original texts
