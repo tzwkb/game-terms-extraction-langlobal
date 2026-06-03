@@ -16,3 +16,7 @@ build/
 *.swo
 .ui_models.json
 .ui_config.json
+.ui_config.json
+output/
+database/
+__pycache__/
