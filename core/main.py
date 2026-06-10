@@ -43,7 +43,17 @@ from core.retry import retry_async
 import logging
 logger = logging.getLogger("pipeline")
 
-_VAR_RE = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+')
+_VAR_RE = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+|\{[^}]*\}|</?[a-zA-Z][^>]*>')
+
+
+def _clean_src_text(s: str) -> str:
+    """Strip variable placeholders ($var / {0} / <tag>) and surrounding whitespace."""
+    return _VAR_RE.sub('', s).strip()
+
+
+def _has_content(s: str) -> bool:
+    """True if the text holds a word char (CJK/letter/digit); all-punctuation/symbol rows are False."""
+    return bool(re.search(r'\w', s))
 
 
 def _on_interrupt(sig, frame):
@@ -477,23 +487,21 @@ def run_pipeline(source_path: str, glossary_path: str, profile_name: str = "yany
 
     df_src = pd.read_excel(source_path)
     if opts.bilingual:
-        zh_raw = df_src.iloc[:, opts.src_col].fillna("").astype(str).str.strip()
-        en_raw = df_src.iloc[:, opts.src_en_col].fillna("").astype(str).str.strip()
+        zh_raw = df_src.iloc[:, opts.src_col].fillna("").astype(str)
+        en_raw = df_src.iloc[:, opts.src_en_col].fillna("").astype(str)
         pairs = []
         for z, e in zip(zh_raw, en_raw):
-            z = _VAR_RE.sub('', z).strip()
-            e = _VAR_RE.sub('', e).strip()
-            if z:
+            z, e = _clean_src_text(z), _clean_src_text(e)
+            if _has_content(z):
                 pairs.append((z, e))
         pairs = list(dict.fromkeys(pairs))
         texts = [f"ZH: {z} | EN: {e}" for z, e in pairs]
-        logger.info(f"Source (bilingual): {len(df_src)} rows -> {len(texts)} after dedup")
+        logger.info(f"Source (bilingual): {len(df_src)} rows -> {len(texts)} texts (dropped empty/punct/dup)")
     else:
-        texts = df_src.iloc[:, opts.src_col].dropna().astype(str).tolist()
-        texts = [t for t in texts if t]
-        texts = list(dict.fromkeys(texts))
-        texts = [s for t in texts if (s := _VAR_RE.sub('', t).strip())]
-        logger.info(f"Source: {len(df_src)} rows -> {len(texts)} after dedup")
+        raw = df_src.iloc[:, opts.src_col].dropna().astype(str).tolist()
+        cleaned = [_clean_src_text(t) for t in raw]
+        texts = list(dict.fromkeys(s for s in cleaned if _has_content(s)))
+        logger.info(f"Source: {len(df_src)} rows -> {len(texts)} texts (dropped empty/punct/dup)")
     if progress_callback:
         progress_callback("loading", 1, 1, f"{len(texts)} texts loaded, {len(glossary_keys)} glossary terms")
         progress_callback("extracting", 0, 1, "即将开始提取…")
