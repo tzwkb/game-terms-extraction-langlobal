@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Verify LLM-based header detection (core/header_detect.py).
 
-Reads api_key/api_base from .ui_config.json at project root.
-Cases 1-4 call the real LLM API; case 5 is offline (no key -> default fallback).
+Standalone: API access is hardcoded inside core/header_detect.py.
+Cases 1-4 call the real LLM API; case 5 simulates an unreachable API.
 """
 
-import json
-import os
 import sys
 from pathlib import Path
 
@@ -15,13 +13,8 @@ import pandas as pd
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
+import core.header_detect as hd
 from core.header_detect import detect_source_column, detect_glossary_columns
-
-CFG = json.loads((ROOT / ".ui_config.json").read_text(encoding="utf-8"))
-API_KEY = os.getenv("OPENAI_API_KEY", "") or CFG.get("api_key", "")
-API_BASE = os.getenv("OPENAI_API_BASE", "") or CFG.get("api_base", "https://api.vectorengine.ai/v1")
-if not API_KEY:
-    sys.exit("No API key: set OPENAI_API_KEY env or fill api_key in .ui_config.json")
 
 TEMPLATE_8COL = pd.DataFrame({
     "Key值": ["UI_SKILL_001", "NPC_NAME_017"],
@@ -60,22 +53,25 @@ def check(name, actual, expected):
     print(f"[{'PASS' if ok else 'FAIL'}] {name}{detail}")
 
 
-print(f"API base: {API_BASE}\n")
+print(f"API base: {hd.DETECT_API_BASE}\n")
 
-r = detect_glossary_columns(TEMPLATE_8COL, API_KEY, API_BASE)
+r = detect_glossary_columns(TEMPLATE_8COL)
 check("8-col template -> cn=2(术语原文), en=3(术语译文)", r, {"cn_col": 2, "en_col": 3, "method": "ai"})
 
-r = detect_glossary_columns(CLASSIC_2COL, API_KEY, API_BASE)
+r = detect_glossary_columns(CLASSIC_2COL)
 check("classic 2-col -> cn=0, en=1", r, {"cn_col": 0, "en_col": 1, "method": "ai"})
 
-r = detect_glossary_columns(SWAPPED_2COL, API_KEY, API_BASE)
+r = detect_glossary_columns(SWAPPED_2COL)
 check("swapped 2-col (EN first) -> cn=1, en=0", r, {"cn_col": 1, "en_col": 0, "method": "ai"})
 
-r = detect_source_column(SOURCE_3COL, API_KEY, API_BASE)
+r = detect_source_column(SOURCE_3COL)
 check("source 3-col (key/text/note) -> text_col=1", r, {"text_col": 1, "method": "ai"})
 
-r = detect_glossary_columns(TEMPLATE_8COL, api_key="", base_url="")
-check("offline (no key) -> default 0/1 fallback", r, {"cn_col": 0, "en_col": 1, "method": "default"})
+_orig_base = hd.DETECT_API_BASE
+hd.DETECT_API_BASE = "http://127.0.0.1:9/v1"
+r = detect_glossary_columns(TEMPLATE_8COL)
+hd.DETECT_API_BASE = _orig_base
+check("unreachable API -> default 0/1 fallback", r, {"cn_col": 0, "en_col": 1, "method": "default"})
 
 n_pass = sum(results)
 print(f"\n{n_pass}/{len(results)} passed")

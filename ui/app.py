@@ -293,8 +293,8 @@ elif page_id == "process":
         try:
             df_src = pd.read_excel(BytesIO(eff_src))
             df_gl = pd.read_excel(BytesIO(eff_gl))
-            d_src = detect_source_column(df_src, cfg.api_key, cfg.api_base)
-            d_gl = detect_glossary_columns(df_gl, cfg.api_key, cfg.api_base)
+            d_src = detect_source_column(df_src)
+            d_gl = detect_glossary_columns(df_gl)
             st.session_state._pending__src_col = d_src["text_col"]
             st.session_state._pending__gl_cn_col = d_gl["cn_col"]
             st.session_state._pending__gl_en_col = d_gl["en_col"]

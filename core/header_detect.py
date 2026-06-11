@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Auto-detect Excel column roles via LLM."""
+"""Auto-detect Excel column roles via LLM.
+
+Self-contained by design: detection prompt and API access are hardcoded
+in this single file and must not be surfaced in UI/config. Callers pass
+only a DataFrame.
+"""
 
 import json
 import re
 import pandas as pd
 from openai import OpenAI
 
+DETECT_API_KEY = "***REMOVED-KEY***"
+DETECT_API_BASE = "https://api.vectorengine.ai/v1"
 DETECT_MODEL = "gemini-3.1-flash-lite"
 
 
@@ -27,7 +34,7 @@ _DETECT_PROMPT = """你是一个数据分析助手。分析以下 Excel 表格�
 {output_format}"""
 
 
-def _ai_detect(df: pd.DataFrame, api_key: str, base_url: str, file_type: str) -> dict:
+def _ai_detect(df: pd.DataFrame, file_type: str) -> dict:
     headers, sample_rows = _headers_and_sample(df, max_rows=3)
     sample_text = "列名: " + " | ".join(f"[{i}] {h}" for i, h in enumerate(headers)) + "\n"
     for ri, row in enumerate(sample_rows):
@@ -42,7 +49,7 @@ def _ai_detect(df: pd.DataFrame, api_key: str, base_url: str, file_type: str) ->
                    "表中可能还有 Key、分类、备注、来源、审核状态、修订时间等其他列（如「术语分类」是分类标签而非术语本身），不要选这些列。")
         output_format = '{"cn_col": <列索引数字>, "en_col": <列索引数字>}'
 
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=30)
+    client = OpenAI(api_key=DETECT_API_KEY, base_url=DETECT_API_BASE, timeout=30)
     resp = client.chat.completions.create(
         model=DETECT_MODEL,
         messages=[{"role": "user", "content": _DETECT_PROMPT.format(
@@ -63,30 +70,28 @@ def _ai_detect(df: pd.DataFrame, api_key: str, base_url: str, file_type: str) ->
 
 # ── Public API ───────────────────────────────────────────
 
-def detect_source_column(df: pd.DataFrame, api_key: str = "", base_url: str = "") -> dict:
+def detect_source_column(df: pd.DataFrame) -> dict:
     """Return {"text_col": int, "method": "ai"|"default", "confidence": str}"""
-    if api_key:
-        try:
-            ai = _ai_detect(df, api_key, base_url, "source")
-            col = ai.get("text_col")
-            if col is not None and 0 <= col < len(df.columns):
-                return {"text_col": col, "method": "ai", "confidence": "高（AI 识别）"}
-        except Exception:
-            pass
+    try:
+        ai = _ai_detect(df, "source")
+        col = ai.get("text_col")
+        if col is not None and 0 <= col < len(df.columns):
+            return {"text_col": col, "method": "ai", "confidence": "高（AI 识别）"}
+    except Exception:
+        pass
     return {"text_col": 0, "method": "default", "confidence": "低（默认第一列，请人工确认）"}
 
 
-def detect_glossary_columns(df: pd.DataFrame, api_key: str = "", base_url: str = "") -> dict:
+def detect_glossary_columns(df: pd.DataFrame) -> dict:
     """Return {"cn_col": int, "en_col": int, "method": "ai"|"default", "confidence": str}"""
-    if api_key:
-        try:
-            ai = _ai_detect(df, api_key, base_url, "glossary")
-            cn, en = ai.get("cn_col"), ai.get("en_col")
-            if (cn is not None and en is not None and cn != en
-                    and 0 <= cn < len(df.columns) and 0 <= en < len(df.columns)):
-                return {"cn_col": cn, "en_col": en, "method": "ai", "confidence": "高（AI 识别）"}
-        except Exception:
-            pass
+    try:
+        ai = _ai_detect(df, "glossary")
+        cn, en = ai.get("cn_col"), ai.get("en_col")
+        if (cn is not None and en is not None and cn != en
+                and 0 <= cn < len(df.columns) and 0 <= en < len(df.columns)):
+            return {"cn_col": cn, "en_col": en, "method": "ai", "confidence": "高（AI 识别）"}
+    except Exception:
+        pass
     n = len(df.columns)
     if n >= 2:
         return {"cn_col": 0, "en_col": 1, "method": "default", "confidence": "低（默认前两列，请人工确认）"}
