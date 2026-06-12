@@ -276,7 +276,7 @@ function mapTemplateHeaders(headerRow) {
 /*CORE-END*/
 
 // ───────────────────────── State ─────────────────────────
-const ROW_H = 84, BUFFER = 8, TERMS_PER_PAGE = 100;
+const ROW_H = 84, BUFFER = 8, TERMS_PER_PAGE = 100, CELL_CAP = 600;
 const S = {
   headers: [], rows: [],
   keyCol: -1, termCol: 2, transCol: -1,
@@ -473,7 +473,8 @@ function rowHTML(id, pos) {
     : `<td class="col-act" style="text-align:center;"><button class="add-row-btn" data-id="${id}" title="添加整行为术语">➕</button></td>`;
   h += `<td class="col-num row-num" data-id="${id}" title="双击查看整行全文">${id + 1}</td>`;
   for (const c of cols) {
-    const v = String(row[c] ?? '');
+    let v = String(row[c] ?? '');
+    if (v.length > CELL_CAP) v = v.slice(0, CELL_CAP) + ' …(双击行号看全文)';
     if (c === S.termCol) h += `<td class="${colClass(c)} term-cell" data-id="${id}"><div class="cell-clip">${highlightTerm(v)}</div></td>`;
     else if (c === S.transCol) h += `<td class="${colClass(c)}"><div class="cell-clip">${highlightTrans(v)}</div></td>`;
     else h += `<td class="${colClass(c)}"><div class="cell-clip">${escapeHtml(v)}</div></td>`;
