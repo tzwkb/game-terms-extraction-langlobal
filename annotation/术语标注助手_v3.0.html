@@ -1035,9 +1035,9 @@ function exportTerms() {
 function projectJSON() {
   return JSON.stringify({
     version: '3.0', timestamp: nowISO(),
-    headers: S.headers, rows: S.rows,
-    keyCol: S.keyCol, termCol: S.termCol, transCol: S.transCol,
-    visibleCols: S.visibleCols, columnFilters: S.columnFilters,
+    headers: S.headers, originalRawData: S.rows,
+    termColumnIndex: S.termCol, keyColumnIndex: S.keyCol, translationColumnIndex: S.transCol,
+    visibleColumns: S.visibleCols, columnFilters: S.columnFilters,
     termDetails: [...S.termDetails.entries()], categoryTags: [...S.categoryTags], nextOrder: S.nextOrder,
   });
 }
@@ -1060,7 +1060,7 @@ function loadProjectObj(p) {
   S.keyCol = p.keyCol ?? p.keyColumnIndex ?? -1;
   S.termCol = p.termCol ?? p.termColumnIndex ?? 2;
   S.transCol = p.transCol ?? p.translationColumnIndex ?? -1;
-  S.visibleCols = p.visibleCols || [];
+  S.visibleCols = p.visibleCols || p.visibleColumns || [];
   S.columnFilters = p.columnFilters || {};
   S.nextOrder = p.nextOrder || S.termDetails.size;
   S.selection.clear(); S.batchMode = false; $('batchBar').style.display = 'none';
