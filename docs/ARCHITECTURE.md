@@ -26,16 +26,17 @@ core/main.py             ← 引擎库，对外暴露 run_pipeline / extract_ter
 #### `run_pipeline` — 完整工作流入口
 ```python
 run_pipeline(
-    source_path: str,           # 源文本 Excel（A列）
-    glossary_path: str,         # 术语表 Excel（A=中文, B=英文）
+    source_path: str,            # 源文本 Excel
+    glossary_path: str,          # 术语表 Excel
     profile_name: str = "yanyun",
     api_key: str = "",
     base_url: str = "https://api.openai.com/v1",
     model: str = "gemini-3.1-pro-preview",
-    similarity: str = "embedding",   # "embedding" | "tfidf"
     output_dir: str = "",
     raw_dir: str = "",
     checkpoint_dir: str = "",
+    progress_callback: callable = None,
+    opts: PipelineOpts = PipelineOpts(),  # bilingual/no_translate/src_col/src_en_col/key_col/gl_cn_col/gl_en_col/并发
 ) -> List[dict]
 ```
 返回术语列表，每项：
@@ -44,12 +45,23 @@ run_pipeline(
   "term": "墨门",
   "category": "门派势力",
   "source_text": "青长老说墨门弟子需恪守门规",
+  "source_key": "DLG_001",
   "translation": "Momen",
-  "match_type": "exact | llm_translated",
+  "match_type": "exact | bilingual | llm_translated | no_translate",
+  "note": "（可选）EN列与术语表冲突时记录EN原值",
   "ref_term": "...",
   "ref_trans": "...",
   "ref_sim": 0.92
 }
+```
+
+#### `results_to_template_df` / `save_outputs` — 标注模板导出
+```python
+results_to_template_df(results: List[dict], timestamp: str = "") -> pd.DataFrame
+# 8 列模板（TEMPLATE_COLUMNS）：Key值/术语分类/术语原文/术语译文/备注/来源原文/审核状态/最新修订时间
+
+save_outputs(results: List[dict], out_dir) -> Tuple[Path, Path]
+# 同时落盘 results.xlsx + 候选术语_模板.xlsx，CLI 与 UI 共用
 ```
 
 #### `extract_terms` — 仅提取，不翻译
@@ -284,10 +296,12 @@ source.xlsx (A列原文)
   ├─ filter_derived_terms (去除称谓派生变体)
   ├─ profile.filterable_categories 过滤（非术语库中的通用分类）
   │
-  ├─ glossary 精确匹配 → exact
-  └─ EmbedStore top-1 + LLM 翻译 → llm_translated
-        │
-        └─ results.xlsx
+  ├─ 译文权威序（2026-06-12 裁决）:
+  │     ① glossary 精确命中 → exact（与双语EN列冲突时译文取库、EN原值写 note）
+  │     ② 双语EN列照抄 → bilingual
+  │     ③ EmbedStore top-1 + LLM 翻译 → llm_translated（注入 translation_rules）
+  │
+  └─ save_outputs → results.xlsx + 候选术语_模板.xlsx（8列，审核状态=未审核，note→备注）
 ```
 
 ---
