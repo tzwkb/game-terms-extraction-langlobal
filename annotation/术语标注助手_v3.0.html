@@ -155,9 +155,12 @@ tbody tr.data-row { height: 84px; }
   </div>
   <div class="sidebar">
     <div class="term-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
         <h2 style="font-size:1.1rem;">📌 术语库 <span id="termCount" class="term-count">0</span></h2>
-        <button id="btnTags" style="padding:4px 12px;font-size:0.75rem;">🏷️ 分类标签</button>
+        <div style="display:flex;gap:6px;">
+          <button id="btnAddTerm" class="success" style="padding:4px 12px;font-size:0.75rem;">➕ 新增术语</button>
+          <button id="btnTags" style="padding:4px 12px;font-size:0.75rem;">🏷️ 分类标签</button>
+        </div>
       </div>
       <button id="btnExport" class="primary" style="width:100%;">📎 导出术语表 (8列模板)</button>
       <div class="filter-group">
@@ -843,6 +846,34 @@ function showEditDialog(term) {
     jumpTerm(nt);
   };
 }
+function showAddDialog() {
+  if (activeDialog) return;
+  const dl = catDatalist('add');
+  const { ov, close } = dialog(`<h3>➕ 新增术语</h3>
+    <label>术语原文（必填）</label><input id="adTerm" autocomplete="off">
+    <label>分类</label><input id="adCat" list="${dl.id}" placeholder="选择或输入新分类" autocomplete="off">${dl.html}
+    <label>译文</label><input id="adTrans" autocomplete="off">
+    <label>备注</label><textarea id="adNote" rows="2"></textarea>
+    <div class="dialog-buttons"><button id="adCancel">取消</button><button id="adOk" class="success">添加</button></div>`);
+  ov.querySelector('#adCancel').onclick = close;
+  ov.querySelector('#adOk').onclick = () => {
+    const term = ov.querySelector('#adTerm').value.trim();
+    if (!term) { toast('术语原文不能为空'); return; }
+    if (S.termDetails.has(term)) { toast(`「${term}」已在术语库`); return; }
+    addTerm(term, {
+      category: ov.querySelector('#adCat').value.trim(),
+      translation: ov.querySelector('#adTrans').value.trim(),
+      note: ov.querySelector('#adNote').value,
+    });
+    termChanged({ trans: true, index: { add: term } });
+    close();
+    const hits = termRows(term).length;
+    if (hits) { jumpTerm(term); toast(`已添加「${term}」，原文命中 ${hits} 行`); }
+    else toast(`已添加「${term}」（原文中未出现，仅入库）`);
+  };
+  setTimeout(() => ov.querySelector('#adTerm').focus(), 50);
+}
+
 function showTagManager() {
   if (activeDialog) return;
   const render = (ov) => {
@@ -1207,6 +1238,7 @@ $('btnClearTerms').onclick = () => {
 };
 $('btnExport').onclick = exportTerms;
 $('btnTags').onclick = showTagManager;
+$('btnAddTerm').onclick = showAddDialog;
 $('btnJump').onclick = () => {
   const n = +$('jumpInput').value;
   if (!n || n < 1 || n > S.rows.length) { toast(`行号需在 1~${S.rows.length}`); return; }
