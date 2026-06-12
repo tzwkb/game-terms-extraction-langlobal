@@ -333,7 +333,7 @@ const S = {
   termDetails: new Map(), categoryTags: new Set(), nextOrder: 0,
   visIds: [], visPos: new Map(),
   termIndex: new Map(), jumpPtr: new Map(),
-  acTerms: null, acTrans: null, transSet: new Set(),
+  acTerms: null, acTrans: null,
   batchMode: false, selection: new Set(), lastChecked: null,
   termPage: 1, termSearch: '', fStatus: 'all', fCat: 'all', fSort: 'default',
   flashId: null, dirty: false,
@@ -370,9 +370,9 @@ function scheduleTransAC() {
   clearTimeout(transTimer);
   transTimer = setTimeout(() => {
     const gen = ++transGen;
-    S.transSet = new Set();
-    for (const info of S.termDetails.values()) { const t = (info.translation || '').trim(); if (t) S.transSet.add(t); }
-    const words = [...S.transSet];
+    const transSet = new Set();
+    for (const info of S.termDetails.values()) { const t = (info.translation || '').trim(); if (t) transSet.add(t); }
+    const words = [...transSet];
     if (words.length <= AC_SYNC_LIMIT) { S.acTrans = buildAC(words); scheduleRender(true); return; }
     buildACAsync(words, ac => { S.acTrans = ac; scheduleRender(true); }, () => gen !== transGen);
   }, 300);
@@ -713,16 +713,23 @@ function renderTermList() {
   fc.value = [...fc.options].some(o => o.value === cur) ? cur : 'all';
   S.fCat = fc.value;
 
-  let terms = [...S.termDetails.keys()];
-  const kw = S.termSearch.trim().toLowerCase();
-  if (kw) terms = terms.filter(t => t.toLowerCase().includes(kw) || (S.termDetails.get(t).translation || '').toLowerCase().includes(kw));
-  if (S.fStatus !== 'all') terms = terms.filter(t => S.termDetails.get(t).reviewStatus === S.fStatus);
-  if (S.fCat === 'uncategorized') terms = terms.filter(t => !S.termDetails.get(t).category);
-  else if (S.fCat === 'categorized') terms = terms.filter(t => S.termDetails.get(t).category);
-  else if (S.fCat !== 'all') terms = terms.filter(t => S.termDetails.get(t).category === S.fCat);
-  if (S.fSort === 'default') terms.sort((a, b) => (S.termDetails.get(a).order || 0) - (S.termDetails.get(b).order || 0));
-  else if (S.fSort === 'time_desc') terms.sort((a, b) => String(S.termDetails.get(b).lastModified).localeCompare(String(S.termDetails.get(a).lastModified)));
-  else terms.sort((a, b) => String(S.termDetails.get(a).lastModified).localeCompare(String(S.termDetails.get(b).lastModified)));
+  const sig = [ver, S.termSearch, S.fStatus, S.fCat, S.fSort].join('\x1f');
+  let terms;
+  if (S._tlCache && S._tlCache.sig === sig) {
+    terms = S._tlCache.terms;
+  } else {
+    terms = [...S.termDetails.keys()];
+    const kw = S.termSearch.trim().toLowerCase();
+    if (kw) terms = terms.filter(t => t.toLowerCase().includes(kw) || (S.termDetails.get(t).translation || '').toLowerCase().includes(kw));
+    if (S.fStatus !== 'all') terms = terms.filter(t => S.termDetails.get(t).reviewStatus === S.fStatus);
+    if (S.fCat === 'uncategorized') terms = terms.filter(t => !S.termDetails.get(t).category);
+    else if (S.fCat === 'categorized') terms = terms.filter(t => S.termDetails.get(t).category);
+    else if (S.fCat !== 'all') terms = terms.filter(t => S.termDetails.get(t).category === S.fCat);
+    if (S.fSort === 'default') terms.sort((a, b) => (S.termDetails.get(a).order || 0) - (S.termDetails.get(b).order || 0));
+    else if (S.fSort === 'time_desc') terms.sort((a, b) => String(S.termDetails.get(b).lastModified).localeCompare(String(S.termDetails.get(a).lastModified)));
+    else terms.sort((a, b) => String(S.termDetails.get(a).lastModified).localeCompare(String(S.termDetails.get(b).lastModified)));
+    S._tlCache = { sig, terms };
+  }
 
   const pages = Math.max(1, Math.ceil(terms.length / TERMS_PER_PAGE));
   if (S.termPage > pages) S.termPage = pages;

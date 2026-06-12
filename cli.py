@@ -2,9 +2,8 @@
 """命令行入口。前端入口为 ui/app.py，两者共用 core.main.run_pipeline。"""
 import os, time, argparse
 from pathlib import Path
-import pandas as pd
 
-from core.main import run_pipeline, PipelineOpts, results_to_template_df
+from core.main import run_pipeline, PipelineOpts, save_outputs
 from core.checkpoint import checkpoint_dir_name
 from config_template import DEFAULT_API_BASE, DEFAULT_MODEL, DEFAULT_PROFILE, DEFAULT_EMBED_WORKERS
 
@@ -53,9 +52,7 @@ def main():
                            raw_dir=raw_dir, checkpoint_dir=ckpt_dir,
                            opts=opts)
 
-    os.makedirs(out_dir, exist_ok=True)
-    pd.DataFrame(results).to_excel(f"{out_dir}/results.xlsx", index=False)
-    results_to_template_df(results).to_excel(f"{out_dir}/候选术语_模板.xlsx", index=False)
+    save_outputs(results, out_dir)
     print(f"\nDone. {len(results)} terms. Output: {out_dir} (results.xlsx + 候选术语_模板.xlsx)")
     print(f"Total: {(time.time()-t0)/60:.1f}m")
 

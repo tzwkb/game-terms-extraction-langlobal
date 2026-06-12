@@ -17,7 +17,7 @@ import streamlit as st
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from core.main import results_to_template_df
+from core.main import results_to_template_df, save_outputs
 from ui.ui_backend import (
     RunConfig, default_config, ProcessingTask,
     get_all_models, add_custom_model, remove_model,
@@ -304,7 +304,9 @@ elif page_id == "process":
                 st.session_state._pending__bilingual = True
             st.session_state._pending__gl_cn_col = d_gl["cn_col"]
             st.session_state._pending__gl_en_col = d_gl["en_col"]
-            st.session_state._col_info = {"src": d_src, "gl": d_gl}
+            st.session_state._col_info = {"src": d_src, "gl": d_gl,
+                                          "src_headers": [str(c) for c in df_src.columns],
+                                          "gl_headers": [str(c) for c in df_gl.columns]}
         except Exception:
             st.session_state._col_info = {}
         st.session_state._col_detected = True
@@ -318,8 +320,7 @@ elif page_id == "process":
                    f"术语列: {gl.get('method','?')}（{gl.get('confidence','?')}）")
 
         if eff_src:
-            df_src = pd.read_excel(BytesIO(eff_src))
-            src_headers = [str(c) for c in df_src.columns]
+            src_headers = col_info.get("src_headers") or [str(c) for c in pd.read_excel(BytesIO(eff_src)).columns]
             st.selectbox("原文列", range(len(src_headers)),
                          index=min(st.session_state.get("_src_col", 0), len(src_headers) - 1),
                          format_func=lambda i: f"[{i}] {src_headers[i]}",
@@ -343,8 +344,7 @@ elif page_id == "process":
                 "跳过翻译（仅提取术语，不翻译）",
                 value=cfg.no_translate, key="_no_translate")
         if eff_gl:
-            df_gl = pd.read_excel(BytesIO(eff_gl))
-            gl_headers = [str(c) for c in df_gl.columns]
+            gl_headers = col_info.get("gl_headers") or [str(c) for c in pd.read_excel(BytesIO(eff_gl)).columns]
             c1, c2 = st.columns(2)
             with c1:
                 st.selectbox("中文术语列", range(len(gl_headers)),
@@ -508,12 +508,8 @@ elif page_id == "process":
                     st.success(f"完成 — 共提取 {len(task.results)} 条术语")
                     st.session_state.task_results = task.results
                     if not st.session_state.get("_results_saved"):
-                        out_path = (Path(task.output_dir) / "results.xlsx"
-                                    if task.output_dir
-                                    else ROOT / "output" / f"results_{time.strftime('%Y%m%d_%H%M%S')}.xlsx")
-                        pd.DataFrame(task.results).to_excel(out_path, index=False)
-                        tpl_path = out_path.with_name(out_path.name.replace("results", "候选术语_模板"))
-                        results_to_template_df(task.results).to_excel(tpl_path, index=False)
+                        out_dir = task.output_dir or (ROOT / "output" / f"run_{time.strftime('%Y%m%d_%H%M%S')}")
+                        save_outputs(task.results, out_dir)
                         st.session_state._results_saved = True
                 st.session_state.task = None
                 return
@@ -602,21 +598,22 @@ elif page_id == "results":
         st.subheader("全部术语")
         st.dataframe(df, use_container_width=True, height=400)
 
-        tpl_io = BytesIO()
-        with pd.ExcelWriter(tpl_io, engine="openpyxl") as writer:
-            results_to_template_df(results).to_excel(writer, index=False, sheet_name="术语表")
-        tpl_io.seek(0)
-
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False, sheet_name="terms")
-        output.seek(0)
+        cache = st.session_state.get("_dl_cache")
+        if not cache or cache[0] is not results:
+            tpl_io = BytesIO()
+            with pd.ExcelWriter(tpl_io, engine="openpyxl") as writer:
+                results_to_template_df(results).to_excel(writer, index=False, sheet_name="术语表")
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="terms")
+            cache = (results, tpl_io.getvalue(), output.getvalue())
+            st.session_state._dl_cache = cache
 
         c_dl1, c_dl2 = st.columns(2)
         with c_dl1:
             st.download_button(
                 "下载标注模板 xlsx（8列，导入标注工具）",
-                data=tpl_io,
+                data=cache[1],
                 file_name="候选术语_模板.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
@@ -625,7 +622,7 @@ elif page_id == "results":
         with c_dl2:
             st.download_button(
                 "下载原始结果 xlsx",
-                data=output,
+                data=cache[2],
                 file_name="terms_extraction_results.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,

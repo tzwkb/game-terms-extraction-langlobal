@@ -67,6 +67,17 @@ def results_to_template_df(results: List[dict], timestamp: str = "") -> pd.DataF
     } for r in results]
     return pd.DataFrame(rows, columns=TEMPLATE_COLUMNS)
 
+
+def save_outputs(results: List[dict], out_dir) -> Tuple[Path, Path]:
+    """Write results.xlsx + 候选术语_模板.xlsx into out_dir, return both paths."""
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    res_path = out / "results.xlsx"
+    tpl_path = out / "候选术语_模板.xlsx"
+    pd.DataFrame(results).to_excel(res_path, index=False)
+    results_to_template_df(results).to_excel(tpl_path, index=False)
+    return res_path, tpl_path
+
 _VAR_RE = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+|\{[^}]*\}|</?[a-zA-Z][^>]*>')
 
 
@@ -406,8 +417,6 @@ def match_and_translate(extracted: List[dict], glossary: dict, profile: dict,
                         api_key: str, base_url: str, model: str,
                         raw_dir: str = "", embed_store: EmbedStore = None,
                         bilingual: bool = False) -> List[dict]:
-    glossary_keys = list(glossary.keys())
-
     def _clean(d):
         for k in ("_ref_term", "_ref_trans", "_ref_sim", "eng_term"):
             d.pop(k, None)
@@ -465,7 +474,7 @@ def match_and_translate(extracted: List[dict], glossary: dict, profile: dict,
     for t in need_translate:
         en = trans_map.get(t["term"], "")
         translated.append({**t, "translation": en, "match_type": "llm_translated",
-                           "ref_term": t.pop("_ref_term", ""), "ref_trans": t.pop("_ref_trans", ""), "ref_sim": t.pop("_ref_sim", 0)})
+                           "ref_term": t.get("_ref_term", ""), "ref_trans": t.get("_ref_trans", ""), "ref_sim": t.get("_ref_sim", 0)})
 
     return [_clean(d) for d in exact_matched + bilingual_copied + translated]
 
@@ -514,25 +523,21 @@ def run_pipeline(source_path: str, glossary_path: str, profile_name: str = "yany
 
     keys_raw = (df_src.iloc[:, opts.key_col].map(_key_str)
                 if opts.key_col is not None and 0 <= opts.key_col < df_src.shape[1] else None)
+    key_list = keys_raw.tolist() if keys_raw is not None else None
+    texts, text_keys, seen = [], [], set()
     if opts.bilingual:
-        zh_raw = df_src.iloc[:, opts.src_col].fillna("").astype(str)
-        en_raw = df_src.iloc[:, opts.src_en_col].fillna("").astype(str)
-        pairs, pair_keys = [], {}
-        for pos, (z, e) in enumerate(zip(zh_raw, en_raw)):
+        zh_list = df_src.iloc[:, opts.src_col].fillna("").astype(str).tolist()
+        en_list = df_src.iloc[:, opts.src_en_col].fillna("").astype(str).tolist()
+        for pos, (z, e) in enumerate(zip(zh_list, en_list)):
             z, e = _clean_src_text(z), _clean_src_text(e)
-            if not _has_content(z):
+            if not _has_content(z) or (z, e) in seen:
                 continue
-            if (z, e) not in pair_keys:
-                pair_keys[(z, e)] = keys_raw.iloc[pos] if keys_raw is not None else ""
-                pairs.append((z, e))
-        texts = [f"ZH: {z} | EN: {e}" for z, e in pairs]
-        text_keys = [pair_keys[p] for p in pairs]
+            seen.add((z, e))
+            texts.append(f"ZH: {z} | EN: {e}")
+            text_keys.append(key_list[pos] if key_list is not None else "")
         logger.info(f"Source (bilingual): {len(df_src)} rows -> {len(texts)} texts (dropped empty/punct/dup)")
     else:
-        src_raw = df_src.iloc[:, opts.src_col]
-        texts, text_keys, seen = [], [], set()
-        for pos in range(len(df_src)):
-            v = src_raw.iloc[pos]
+        for pos, v in enumerate(df_src.iloc[:, opts.src_col].tolist()):
             if pd.isna(v):
                 continue
             s = _clean_src_text(str(v))
@@ -540,7 +545,7 @@ def run_pipeline(source_path: str, glossary_path: str, profile_name: str = "yany
                 continue
             seen.add(s)
             texts.append(s)
-            text_keys.append(keys_raw.iloc[pos] if keys_raw is not None else "")
+            text_keys.append(key_list[pos] if key_list is not None else "")
         logger.info(f"Source: {len(df_src)} rows -> {len(texts)} texts (dropped empty/punct/dup)")
     if progress_callback:
         progress_callback("loading", 1, 1, f"{len(texts)} texts loaded, {len(glossary_keys)} glossary terms")
