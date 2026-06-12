@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const html = readFileSync(join(here, '术语标注助手_v3.0.html'), 'utf-8');
+const html = readFileSync(join(here, '..', '术语标注助手_v3.0.html'), 'utf-8');
 const core = html.match(/\/\*CORE-START\*\/([\s\S]*?)\/\*CORE-END\*\//)[1];
 const mod = new Function(core + `
   return { escapeHtml, buildAC, pickNonOverlap, computeWindow, matchesFilters, mergeImportedTerm, mapTemplateHeaders };

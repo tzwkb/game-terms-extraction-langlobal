@@ -61,9 +61,9 @@
 ## 开发者
 
 ```bash
-node annotation/test_core.mjs     # 核心算法正确性（24 用例）
-node annotation/bench_core.mjs    # 验收规模基准（10万行×3万词）
-node annotation/stress_core.mjs   # 超限压测（100万行/30万词/病态输入）
+node annotation/test/test_core.mjs     # 核心算法正确性（24 用例）
+node annotation/test/bench_core.mjs    # 验收规模基准（10万行×3万词）
+node annotation/test/stress_core.mjs   # 超限压测（100万行/30万词/病态输入）
 ```
 
 核心纯逻辑位于 HTML 内 `/*CORE-START*/ … /*CORE-END*/` 块，测试脚本从中提取运行，改核心逻辑后请回归。
