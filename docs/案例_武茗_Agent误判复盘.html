@@ -140,7 +140,7 @@
   <section>
     <div class="kicker">那个词</div>
     <h2>问题出在两个看不见的空格</h2>
-    <p>出错的词只有一个：<strong>武茗</strong>，一个游戏里的角色名。它在结果表里"来源"一栏是空的，Agent 就据此判定它是误报（false positive），认为"原文里根本没有这个词，是模型编的"。但翻原文就会发现，它其实在第 560 行——</p>
+    <p>出问题的词条只有一个：<strong>武茗</strong>，一个游戏角色名。它在候选术语表里"来源"一栏是空的，Agent 就据此判定它是误报（false positive），认为"原文里根本没有这个词，是模型编的"。但翻原文就会发现，它其实在第 560 行——</p>
     <div class="exhibit">
       <div class="h">原文 · 第 560 行（角色名）</div>
       <div class="b">
@@ -183,7 +183,7 @@
     <div class="kicker">怎么处理的</div>
     <h2>已经修好，两步</h2>
     <div class="steps">
-      <div class="stp"><div class="n">1</div><div class="t">让程序核对时<strong>不计较多余的空格</strong>。<span class="s">武茗就能正确对上第 560 行，"来源"一栏不再是空的。</span></div></div>
+      <div class="stp"><div class="n">1</div><div class="t">让程序回查原文时<strong>不计较多余的空格</strong>。<span class="s">武茗就能正确对上第 560 行，"来源"一栏不再是空的。</span></div></div>
       <div class="stp"><div class="n">2</div><div class="t">把"<strong>回查不到原文就自动删</strong>"改成"<strong>只打标记、交 QA 人工判断</strong>"。<span class="s">因为"找不到"不等于"是假的"——这种情况宁可标出来让人判断，也不让程序擅自删。</span></div></div>
     </div>
   </section>
