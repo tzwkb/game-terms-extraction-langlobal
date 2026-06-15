@@ -114,6 +114,30 @@
   .fb{display:flex; align-items:center; gap:11px}
   .fb img{width:32px; height:32px; border-radius:7px}
   .fb b{color:var(--ink-soft)}
+
+  /* ── 移动端适配 ── */
+  @media (max-width:600px){
+    body{font-size:15px}
+    .wrap{padding:0 16px}
+    header{padding:30px 0 22px}
+    h1{font-size:1.58rem; line-height:1.32}
+    .subtitle{font-size:1.05rem; margin-top:8px}
+    .dek{font-size:.96rem; margin-top:12px}
+    .meta{gap:5px 16px; font-size:.78rem; padding-top:14px}
+    section{padding:26px 0}
+    h2{font-size:1.26rem}
+    .summary{padding:18px 18px}
+    .summary p{font-size:1rem}
+    .note{padding:13px 16px}
+    .exhibit .b{padding:16px 16px}
+    .word{font-size:1.55rem}
+    .turn .msg{min-width:0; padding:12px 15px}   /* min-width:0 防止代码块撑宽页面 */
+    .code{font-size:.7rem; line-height:1.6; padding:10px 11px}
+    .stp{padding:14px 15px; gap:12px}
+    .rem{padding:14px 16px}
+    .fb{gap:9px}
+    footer{padding:28px 0 44px}
+  }
 </style>
 </head>
 <body>
@@ -138,7 +162,7 @@
 
   <section style="border-top:none">
     <div class="summary">
-      <p>这次跑术语提取（term extraction）用的是 <strong>claude-opus-4.8</strong>——已经是目前最强的大模型之一。即便如此，Agent 仍把一个<strong>真实存在的角色名「武茗」</strong>，当成了"模型乱编出来的词"，并且<strong>判成误报、自动从候选术语表里删掉了</strong>——还顺手把"自动删这类词"写进了程序。后来在人工 QA（质检）时发现判断有误——武茗是真的，只是原文里中间多了两个空格、程序回查没对上。误删真词会直接损召回（recall）。已修正，并改掉了"自动删"的做法。</p>
+      <p>在检查这次术语提取（term extraction）的结果文件时，发现有一行输出格式出现了问题（见下图），遂向 Agent 发问核实原因，我的用的是 <strong>claude-opus-4.8</strong>——已经是目前最强的大模型之一。即便如此，Agent 仍把一个<strong>真实存在的角色名「武茗」</strong>，当成了"模型乱编出来的词"，并且<strong>判成误报、自动从候选术语表里删掉了</strong>——还顺手把"自动删这类词"写进了程序。后来在人工 QA（质检）时发现判断有误——"武茗"是真的，只是原文里中间多了两个空格、程序回查没对上。误删真词会直接损召回（recall）。已修正，并改掉了"自动删"的做法。</p>
     </div>
   </section>
 
