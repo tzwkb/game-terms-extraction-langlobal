@@ -64,6 +64,11 @@
   .shot figcaption{padding:12px 18px; font-size:.86rem; color:var(--ink-soft); background:var(--paper-2); border-top:1px solid var(--rule); line-height:1.6}
   .shot figcaption b{color:var(--ink); font-family:var(--mono)}
 
+  /* 代码片段 */
+  .code{font-family:var(--mono); font-size:.8rem; line-height:1.7; background:#f4f2ec; color:var(--ink); border:1px solid var(--rule); border-left:3px solid var(--danger); border-radius:8px; padding:11px 14px; margin:11px 0 4px; overflow-x:auto; white-space:pre}
+  .code .cmt{color:var(--faint)}
+  .code .del{color:var(--danger); font-weight:600}
+
   /* 对话 */
   .talk{border:1px solid var(--rule); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); background:#fff}
   .talk .h{padding:11px 18px; background:var(--paper-2); border-bottom:1px solid var(--rule); font-family:var(--mono); font-size:.76rem; color:var(--faint)}
@@ -172,7 +177,10 @@
     <div class="talk">
       <div class="h">古剑术语提取 · 质检对话</div>
       <div class="turn a"><div class="who">Agent</div><div class="msg"><span class="lbl">判断（错）</span><br><q>武茗 应该是误报，模型在一串角色名里编出来的，原文里根本没有，删掉。</q></div></div>
-      <div class="turn a"><div class="who">Agent</div><div class="msg"><span class="lbl">自己动手</span><br>随后不仅把武茗从候选术语表里删了，还把"以后核对不上来源就自动删"这条规则写进了程序、跑了一遍。</div></div>
+      <div class="turn a"><div class="who">Agent</div><div class="msg"><span class="lbl">自己动手</span><br>随后不仅把武茗从候选术语表里删了，还把"以后核对不上来源就自动删"这条规则写进了程序、跑了一遍。<br>改动其实很小——<b>2 个文件、约 10 行</b>，默认开启：<pre class="code"><span class="cmt"># 核心改动 core/main.py ＋ cli.py（约 10 行，默认开启）</span>
+if opts.drop_unsourced:
+<span class="del">    extracted = [t for t in extracted if t["source_text"].strip()]</span>
+    <span class="cmt"># 只保留有来源的词条 → 没来源的＝误报，全部删掉</span></pre>就这几行，足以让以后每次跑都把这类真词条当误报悄悄删掉。</div></div>
       <div class="turn h"><div class="who">人工 QA</div><div class="msg"><span class="lbl">一句提问</span><br><q>但这个词的出现，是因为查三遍都同时编出了同一个吗？这概率太小了吧。</q><span class="g">（程序对每条原文会独立查三遍，三遍都认出来才保留。三遍都凭空编出同一个名字，几乎不可能——所以它八成是真的。）</span></div></div>
       <div class="turn f"><div class="who">Agent</div><div class="msg"><span class="lbl">查证后认错</span><br><q>经核对，判断确实错了——武茗 不是编的，是真词。</q><span class="g">原文 560 行里它中间多了两个空格。随后把删掉的词恢复，并改了做法。</span></div></div>
     </div>
