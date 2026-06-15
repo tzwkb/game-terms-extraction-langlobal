@@ -130,6 +130,7 @@
     <div class="meta">
       <span>日期 <b>2026-06-15</b></span>
       <span>项目 <b>古剑 · 术语提取</b></span>
+      <span>模型 <b>claude-opus-4.8</b></span>
       <span>影响 <b>1 个词</b></span>
       <span>状态 <b style="color:var(--green-deep)">已修正</b></span>
     </div>
@@ -137,7 +138,7 @@
 
   <section style="border-top:none">
     <div class="summary">
-      <p>在术语提取（term extraction）中，Agent 把一个<strong>真实存在的角色名「武茗」</strong>，当成了"模型乱编出来的词"，并且<strong>判成误报、自动从候选术语表里删掉了</strong>——还顺手把"自动删这类词"写进了程序。后来在人工 QA（质检）时发现判断有误——武茗是真的，只是原文里中间多了两个空格、程序回查没对上。误删真词会直接损召回（recall）。已修正，并改掉了"自动删"的做法。</p>
+      <p>这次跑术语提取（term extraction）用的是 <strong>claude-opus-4.8</strong>——已经是目前最强的大模型之一。即便如此，Agent 仍把一个<strong>真实存在的角色名「武茗」</strong>，当成了"模型乱编出来的词"，并且<strong>判成误报、自动从候选术语表里删掉了</strong>——还顺手把"自动删这类词"写进了程序。后来在人工 QA（质检）时发现判断有误——武茗是真的，只是原文里中间多了两个空格、程序回查没对上。误删真词会直接损召回（recall）。已修正，并改掉了"自动删"的做法。</p>
     </div>
   </section>
 
