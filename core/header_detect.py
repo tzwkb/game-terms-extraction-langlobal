@@ -1,21 +1,76 @@
 #!/usr/bin/env python3
-"""Auto-detect Excel column roles via LLM.
+"""Auto-detect Excel column roles via LLM, backed by a persistent header dictionary.
 
-Self-contained by design: detection prompt and API access are hardcoded
-in this single file and must not be surfaced in UI/config. Callers pass
-only a DataFrame.
+Self-contained by design: the detection prompt and API access are bundled in this
+single file and must not be surfaced in UI/config. The key falls back to a built-in
+so the packaged app works out of the box; override with the DETECT_API_KEY env var
+(e.g. a separate / cheaper detection account).
+
+Persistent header dictionary (`header_cache.json` at repo root): every header layout,
+once identified — by the AI **or** by the user's manual column choice — is remembered.
+The next identical header is served straight from the dictionary, skipping the LLM.
+Human-confirmed mappings outrank later AI guesses.
 """
 
 import os
 import json
 import re
+from pathlib import Path
 import pandas as pd
 from openai import OpenAI
 
-DETECT_API_KEY = os.getenv("DETECT_API_KEY")
+# Detection credentials are bundled (built-in fallback) so the packaged app works
+# out of the box; set DETECT_API_KEY to override with a separate detection account.
+_BUNDLED_DETECT_KEY = "***REMOVED-KEY***"
+DETECT_API_KEY = os.getenv("DETECT_API_KEY") or _BUNDLED_DETECT_KEY
 DETECT_API_BASE = os.getenv("DETECT_API_BASE", "https://api.vectorengine.ai/v1")
 DETECT_MODEL = os.getenv("DETECT_MODEL", "gemini-3.1-flash-lite")
 
+CACHE_FILE = Path(__file__).resolve().parent.parent / "header_cache.json"
+
+
+# ── Persistent header dictionary ─────────────────────────────────────────────
+
+def _sig(headers, file_type: str) -> str:
+    """Signature = file type + the ordered, stripped header names (binds to col order)."""
+    cols = " | ".join(str(h).strip() for h in headers)
+    return f"{file_type}::{cols}"
+
+
+def _load_cache() -> dict:
+    try:
+        return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_cache(data: dict):
+    try:
+        CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _cache_get(headers, file_type: str):
+    return _load_cache().get(_sig(headers, file_type))
+
+
+# authority order: a user's manual choice > a shipped seed > an AI guess.
+# A lower-authority source never overwrites a higher one (so AI can't clobber a human fix).
+_RANK = {"ai": 0, "seed": 1, "user": 2}
+
+
+def _cache_put(headers, file_type: str, mapping: dict, source: str):
+    data = _load_cache()
+    key = _sig(headers, file_type)
+    existing = data.get(key)
+    if existing and _RANK.get(existing.get("source"), 0) > _RANK.get(source, 0):
+        return
+    data[key] = {**mapping, "source": source}
+    _save_cache(data)
+
+
+# ── LLM detection ────────────────────────────────────────────────────────────
 
 def _headers_and_sample(df: pd.DataFrame, max_rows: int = 4) -> tuple:
     headers = list(df.columns)
@@ -72,37 +127,71 @@ def _ai_detect(df: pd.DataFrame, file_type: str) -> dict:
     return {}
 
 
-# ── Public API ───────────────────────────────────────────
+# ── Public API ───────────────────────────────────────────────────────────────
 
 def detect_source_column(df: pd.DataFrame) -> dict:
-    """Return {"text_col": int, "key_col": int|None, "en_col": int|None, "method": "ai"|"default", "confidence": str}"""
+    """Return {"text_col": int, "key_col": int|None, "en_col": int|None, "method": "cache"|"ai"|"default", "confidence": str}"""
+    headers = list(df.columns)
+    n = len(headers)
+    cached = _cache_get(headers, "source")
+    if cached and isinstance(cached.get("text_col"), int) and 0 <= cached["text_col"] < n:
+        return {"text_col": cached["text_col"],
+                "key_col": cached.get("key_col"),
+                "en_col": cached.get("en_col"),
+                "method": "cache", "confidence": "高（已知表头，命中字典）"}
     try:
         ai = _ai_detect(df, "source")
         col = ai.get("text_col")
-        if col is not None and 0 <= col < len(df.columns):
+        if col is not None and 0 <= col < n:
             key = ai.get("key_col")
-            if key is None or not (0 <= key < len(df.columns)) or key == col:
+            if key is None or not (0 <= key < n) or key == col:
                 key = None
             en = ai.get("en_col")
-            if en is None or not (0 <= en < len(df.columns)) or en == col or en == key:
+            if en is None or not (0 <= en < n) or en == col or en == key:
                 en = None
-            return {"text_col": col, "key_col": key, "en_col": en, "method": "ai", "confidence": "高（AI 识别）"}
+            mapping = {"text_col": col, "key_col": key, "en_col": en}
+            _cache_put(headers, "source", mapping, "ai")
+            return {**mapping, "method": "ai", "confidence": "高（AI 识别）"}
     except Exception:
         pass
     return {"text_col": 0, "key_col": None, "en_col": None, "method": "default", "confidence": "低（默认第一列，请人工确认）"}
 
 
 def detect_glossary_columns(df: pd.DataFrame) -> dict:
-    """Return {"cn_col": int, "en_col": int, "method": "ai"|"default", "confidence": str}"""
+    """Return {"cn_col": int, "en_col": int, "method": "cache"|"ai"|"default", "confidence": str}"""
+    headers = list(df.columns)
+    n = len(headers)
+    cached = _cache_get(headers, "glossary")
+    if (cached and isinstance(cached.get("cn_col"), int) and isinstance(cached.get("en_col"), int)
+            and 0 <= cached["cn_col"] < n and 0 <= cached["en_col"] < n):
+        return {"cn_col": cached["cn_col"], "en_col": cached["en_col"],
+                "method": "cache", "confidence": "高（已知表头，命中字典）"}
     try:
         ai = _ai_detect(df, "glossary")
         cn, en = ai.get("cn_col"), ai.get("en_col")
         if (cn is not None and en is not None and cn != en
-                and 0 <= cn < len(df.columns) and 0 <= en < len(df.columns)):
-            return {"cn_col": cn, "en_col": en, "method": "ai", "confidence": "高（AI 识别）"}
+                and 0 <= cn < n and 0 <= en < n):
+            mapping = {"cn_col": cn, "en_col": en}
+            _cache_put(headers, "glossary", mapping, "ai")
+            return {**mapping, "method": "ai", "confidence": "高（AI 识别）"}
     except Exception:
         pass
-    n = len(df.columns)
     if n >= 2:
         return {"cn_col": 0, "en_col": 1, "method": "default", "confidence": "低（默认前两列，请人工确认）"}
     return {"cn_col": 0, "en_col": 0, "method": "default", "confidence": "低（仅一列）"}
+
+
+# ── Learning from the user's manual column choice ────────────────────────────
+
+def record_source_correction(headers, text_col, key_col=None, en_col=None):
+    """Persist the user's confirmed source-file columns as ground truth."""
+    _cache_put(headers, "source",
+               {"text_col": int(text_col),
+                "key_col": None if key_col is None or int(key_col) < 0 else int(key_col),
+                "en_col": None if en_col is None or int(en_col) < 0 else int(en_col)},
+               "user")
+
+
+def record_glossary_correction(headers, cn_col, en_col):
+    """Persist the user's confirmed glossary columns as ground truth."""
+    _cache_put(headers, "glossary", {"cn_col": int(cn_col), "en_col": int(en_col)}, "user")

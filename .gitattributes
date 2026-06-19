@@ -1,0 +1,5 @@
+# Windows launchers must stay CRLF — cmd.exe misparses LF-only .bat
+# (drops leading chars of commands, breaks goto/labels, self-install fails).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

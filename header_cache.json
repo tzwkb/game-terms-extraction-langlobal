@@ -1,0 +1,8 @@
+{
+  "source::Key | 原文": {"text_col": 1, "key_col": 0, "en_col": null, "source": "seed"},
+  "source::ID | 原文": {"text_col": 1, "key_col": 0, "en_col": null, "source": "seed"},
+  "source::原文": {"text_col": 0, "key_col": null, "en_col": null, "source": "seed"},
+  "source::Key | 中文 | 英文": {"text_col": 1, "key_col": 0, "en_col": 2, "source": "seed"},
+  "glossary::中文 | 英文": {"cn_col": 0, "en_col": 1, "source": "seed"},
+  "glossary::术语原文 | 术语译文": {"cn_col": 0, "en_col": 1, "source": "seed"}
+}

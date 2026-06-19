@@ -475,6 +475,18 @@ elif page_id == "process":
                        src_col=src_col, gl_cn_col=gl_cn_col, gl_en_col=gl_en_col,
                        src_en_col=src_en_col, src_bytes=eff_src,
                        key_col=None if key_col < 0 else key_col)
+            # learn the user's confirmed columns into the persistent header dictionary
+            try:
+                from core.header_detect import record_source_correction, record_glossary_correction
+                _ci = st.session_state.get("_col_info", {}) or {}
+                if _ci.get("src_headers"):
+                    record_source_correction(_ci["src_headers"], src_col,
+                                             key_col=key_col,
+                                             en_col=src_en_col if cfg.bilingual else None)
+                if _ci.get("gl_headers"):
+                    record_glossary_correction(_ci["gl_headers"], gl_cn_col, gl_en_col)
+            except Exception:
+                pass
             st.session_state.task = task
             st.session_state.task_results = None
             st.session_state._results_saved = False
