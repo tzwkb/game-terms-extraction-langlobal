@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Auto-detect Excel column roles via LLM, backed by a persistent header dictionary.
 
-Self-contained by design: the detection prompt and API access are bundled in this
-single file and must not be surfaced in UI/config. The key falls back to a built-in
-so the packaged app works out of the box; override with the DETECT_API_KEY env var
-(e.g. a separate / cheaper detection account).
+Self-contained by design: the detection prompt lives in this single file and is not
+surfaced in UI/config. Provide an OpenAI-compatible key via the DETECT_API_KEY env
+var to enable column auto-detection; if unset, the app falls back to manual column
+mapping.
 
 Persistent header dictionary (`header_cache.json` at repo root): every header layout,
 once identified — by the AI **or** by the user's manual column choice — is remembered.
@@ -19,10 +19,8 @@ from pathlib import Path
 import pandas as pd
 from openai import OpenAI
 
-# Detection credentials are bundled (built-in fallback) so the packaged app works
-# out of the box; set DETECT_API_KEY to override with a separate detection account.
-_BUNDLED_DETECT_KEY = "***REMOVED-KEY***"
-DETECT_API_KEY = os.getenv("DETECT_API_KEY") or _BUNDLED_DETECT_KEY
+# Detection key comes from the DETECT_API_KEY env var (OpenAI-compatible endpoint).
+DETECT_API_KEY = os.getenv("DETECT_API_KEY", "")
 DETECT_API_BASE = os.getenv("DETECT_API_BASE", "https://api.vectorengine.ai/v1")
 DETECT_MODEL = os.getenv("DETECT_MODEL", "gemini-3.1-flash-lite")
 
