@@ -28,6 +28,9 @@ RESULTS = [
 
 df = results_to_template_df(RESULTS, timestamp="2026-06-11T12:00:00")
 
+def value(row, col):
+    return df.loc[row, col] if col in df.columns else None
+
 with tempfile.TemporaryDirectory() as tmp:
     res_path, tpl_path = save_outputs(
         RESULTS,
@@ -53,8 +56,10 @@ CASES = [
     ("source_text -> 来源原文", df.loc[0, "来源原文"] == "青长老说墨门弟子需恪守门规"),
     ("source_key -> Key值", df.loc[0, "Key值"] == "DLG_001"),
     ("missing source_key -> empty Key值", df.loc[1, "Key值"] == "" and df.loc[2, "Key值"] == ""),
-    ("note -> 备注", df.loc[0, "备注"] == "EN列与术语表不一致，EN列原文：Mo Sect"),
-    ("no note -> empty 备注", df.loc[1, "备注"] == "" and df.loc[2, "备注"] == ""),
+    ("remarks column renamed to match source", "匹配来源" in df.columns and "备注" not in df.columns),
+    ("exact match source value is direct", value(0, "匹配来源") == "精确匹配"),
+    ("no_translate match source value is direct", value(1, "匹配来源") == "无需翻译"),
+    ("AI translation match source value is direct", value(2, "匹配来源") == "AI翻译"),
     ("审核状态 all 未审核", (df["审核状态"] == "未审核").all()),
     ("timestamp applied", (df["最新修订时间"] == "2026-06-11T12:00:00").all()),
     ("NaN/None -> empty string", df.loc[2, "来源原文"] == "" and df.loc[2, "术语译文"] == ""),

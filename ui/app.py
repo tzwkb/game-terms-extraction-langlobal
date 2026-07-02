@@ -615,7 +615,12 @@ elif page_id == "results":
         st.subheader("匹配分布")
         if "match_type" in df.columns:
             match_counts = df["match_type"].value_counts()
-            labels_cn = {"exact": "精确匹配", "llm_translated": "LLM 翻译"}
+            labels_cn = {
+                "exact": "精确匹配",
+                "llm_translated": "AI翻译",
+                "bilingual": "双语原文",
+                "no_translate": "无需翻译",
+            }
             cols = st.columns(len(match_counts))
             for i, (label, count) in enumerate(match_counts.items()):
                 cols[i].metric(labels_cn.get(label, label), count)

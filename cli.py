@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--no-translate", action="store_true",
                         help="跳过 LLM 翻译，仅提取术语（双语模式照抄 EN 列）")
     parser.add_argument("--no-flag-unsourced", action="store_true",
-                        help="不给原文未命中的词在备注打⚠待核标记（默认标记，不删除）")
+                        help="不给原文未命中的词在结果 note 字段打⚠待核标记（默认标记，不删除）")
     parser.add_argument("--concurrent", type=int, default=None, help="并发数")
     parser.add_argument("--max-tokens", type=int, default=None, help="单次最大 token")
     parser.add_argument("--embed-workers", type=int, default=DEFAULT_EMBED_WORKERS, help="向量同步并发")

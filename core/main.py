@@ -53,7 +53,13 @@ from core.retry import retry_async
 import logging
 logger = logging.getLogger("pipeline")
 
-TEMPLATE_COLUMNS = ["Key值", "术语分类", "术语原文", "术语译文", "备注", "来源原文", "审核状态", "最新修订时间"]
+TEMPLATE_COLUMNS = ["Key值", "术语分类", "术语原文", "术语译文", "匹配来源", "来源原文", "审核状态", "最新修订时间"]
+MATCH_TYPE_SOURCE_LABELS = {
+    "exact": "精确匹配",
+    "bilingual": "双语原文",
+    "llm_translated": "AI翻译",
+    "no_translate": "无需翻译",
+}
 
 
 def _safe_filename_part(value: str) -> str:
@@ -102,12 +108,16 @@ def results_to_template_df(results: List[dict], timestamp: str = "") -> pd.DataF
         v = r.get(k, "")
         return "" if v is None or (not isinstance(v, str) and pd.isna(v)) else str(v)
 
+    def _match_source(r):
+        match_type = _cell(r, "match_type")
+        return MATCH_TYPE_SOURCE_LABELS.get(match_type, match_type)
+
     rows = [{
         "Key值": _cell(r, "source_key"),
         "术语分类": _cell(r, "category"),
         "术语原文": _cell(r, "term"),
         "术语译文": _cell(r, "translation"),
-        "备注": _cell(r, "note"),
+        "匹配来源": _match_source(r),
         "来源原文": _cell(r, "source_text"),
         "审核状态": "未审核",
         "最新修订时间": ts,
@@ -191,6 +201,13 @@ def _batch_match_context(terms: List[dict], source_texts: List[str], source_keys
     for t in terms:
         t["source_text"] = term_context.get(t["term"], "")
         t["source_key"] = term_key.get(t["term"], "")
+
+
+def _context_snapshot_for_checkpoint(terms: List[dict], source_texts: List[str],
+                                     source_keys: List[str] = None) -> List[dict]:
+    snapshot = [dict(t) for t in terms]
+    _batch_match_context(snapshot, source_texts, source_keys)
+    return snapshot
 
 
 def _chunk_texts(texts: List[str], target_chars: int, overlap: int = 3) -> List[str]:
@@ -446,7 +463,7 @@ def extract_terms(texts: List[str], profile: dict, api_key: str, base_url: str, 
                               f"+{len(batch_results)} terms, {len(results)} total | {elapsed/60:.1f}m elapsed, ETC {etc/60:.0f}m")
 
         if checkpoint_dir and (end % (concurrent * 2) == 0 or end == len(chunks)):
-            ckpt_save(checkpoint_dir, end, results, len(chunks))
+            ckpt_save(checkpoint_dir, end, _context_snapshot_for_checkpoint(results, texts, text_keys), len(chunks))
 
     seen = {}
     for t in results:
