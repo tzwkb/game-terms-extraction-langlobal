@@ -17,7 +17,7 @@ import streamlit as st
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from core.main import results_to_template_df, save_outputs
+from core.main import descriptive_template_filename, results_to_template_df, save_outputs
 from ui.ui_backend import (
     RunConfig, default_config, ProcessingTask,
     get_all_models, add_custom_model, remove_model,
@@ -535,7 +535,11 @@ elif page_id == "process":
                     st.session_state.task_results = task.results
                     if not st.session_state.get("_results_saved"):
                         out_dir = task.output_dir or (ROOT / "output" / f"run_{time.strftime('%Y%m%d_%H%M%S')}")
-                        save_outputs(task.results, out_dir)
+                        save_outputs(
+                            task.results, out_dir,
+                            profile_name=st.session_state.cfg.profile,
+                            source_path=getattr(task, "source_path", ""),
+                        )
                         st.session_state._results_saved = True
                 st.session_state.task = None
                 return
@@ -625,6 +629,12 @@ elif page_id == "results":
         st.dataframe(df, use_container_width=True, height=400)
 
         cache = st.session_state.get("_dl_cache")
+        template_filename = descriptive_template_filename(
+            profile_name=st.session_state.cfg.profile,
+            source_path=getattr(st.session_state.get("task"), "source_path", "")
+                        or st.session_state.get("_src_cache", ("", b""))[0],
+        )
+
         if not cache or cache[0] is not results:
             tpl_io = BytesIO()
             with pd.ExcelWriter(tpl_io, engine="openpyxl") as writer:
@@ -640,7 +650,7 @@ elif page_id == "results":
             st.download_button(
                 "下载标注模板 xlsx（8列，导入标注工具）",
                 data=cache[1],
-                file_name="候选术语_模板.xlsx",
+                file_name=template_filename,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
                 use_container_width=True,

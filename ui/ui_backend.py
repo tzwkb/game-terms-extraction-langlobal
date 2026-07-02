@@ -421,6 +421,7 @@ class ProcessingTask:
         self.error: str | None = None
         self.info: str = ""
         self.output_dir: str = ""
+        self.source_path: str = ""
         self._stop = threading.Event()
         self._cancelling = False
         self._thread: threading.Thread | None = None
@@ -441,6 +442,7 @@ class ProcessingTask:
         self.results = []
         self.info = ""
         self.output_dir = ""
+        self.source_path = source_path
         self.stage = "starting"
         self.stage_done = 0
         self.stage_total = 1

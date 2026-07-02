@@ -17,6 +17,14 @@ _interrupted = False
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
+DEFAULT_TEMPLATE_FILENAME = "候选术语_模板.xlsx"
+PROFILE_LABELS = {
+    "yanyun": "燕云",
+    "xiuxiu": "咻咻",
+    "baoxiang": "宝箱",
+    "gujian": "古剑",
+}
+
 
 @dataclass
 class PipelineOpts:
@@ -48,6 +56,44 @@ logger = logging.getLogger("pipeline")
 TEMPLATE_COLUMNS = ["Key值", "术语分类", "术语原文", "术语译文", "备注", "来源原文", "审核状态", "最新修订时间"]
 
 
+def _safe_filename_part(value: str) -> str:
+    value = re.sub(r"[\\/:*?\"<>|]+", "", str(value or ""))
+    value = re.sub(r"\s+", "", value)
+    return value.strip("._- ")
+
+
+def _source_descriptor(source_path: str = "") -> str:
+    stem = Path(source_path).stem if source_path else ""
+    if not stem:
+        return ""
+    tags = re.findall(r"【([^】]+)】", stem)
+    plain = re.sub(r"【[^】]+】", " ", stem)
+    plain = re.sub(r"\s+", " ", plain).strip()
+
+    pieces = []
+    version = next((t for t in tags if "版本" in t), "")
+    env = next((t for t in tags if "global" in t.lower()), "")
+    if version:
+        pieces.append(version.replace("版本", ""))
+    if env:
+        pieces.append(env)
+    if plain:
+        pieces.append(plain.replace(" ", ""))
+    return "_".join(filter(None, (_safe_filename_part(p) for p in pieces)))
+
+
+def descriptive_template_filename(profile_name: str = "", source_path: str = "",
+                                  run_date: str = "") -> str:
+    """Return a PM-friendly annotation-template filename, or the legacy name without context."""
+    label = PROFILE_LABELS.get(str(profile_name or "").strip(), _safe_filename_part(profile_name))
+    descriptor = _source_descriptor(source_path)
+    if not label and not descriptor:
+        return DEFAULT_TEMPLATE_FILENAME
+    date_part = _safe_filename_part(run_date or datetime.datetime.now().strftime("%Y%m%d"))
+    parts = [p for p in [label, descriptor, "候选术语标注表", date_part] if p]
+    return f"{'_'.join(parts)}.xlsx"
+
+
 def results_to_template_df(results: List[dict], timestamp: str = "") -> pd.DataFrame:
     """Convert pipeline results to the unified 8-column annotation template."""
     ts = timestamp or datetime.datetime.now().isoformat(timespec="seconds")
@@ -69,14 +115,16 @@ def results_to_template_df(results: List[dict], timestamp: str = "") -> pd.DataF
     return pd.DataFrame(rows, columns=TEMPLATE_COLUMNS)
 
 
-def save_outputs(results: List[dict], out_dir) -> Tuple[Path, Path]:
-    """Write results.xlsx + 候选术语_模板.xlsx into out_dir, return both paths."""
+def save_outputs(results: List[dict], out_dir, profile_name: str = "",
+                 source_path: str = "", run_date: str = "") -> Tuple[Path, Path]:
+    """Write results.xlsx + annotation template files into out_dir, return primary paths."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     res_path = out / "results.xlsx"
-    tpl_path = out / "候选术语_模板.xlsx"
+    tpl_path = out / descriptive_template_filename(profile_name, source_path, run_date)
+    template_df = results_to_template_df(results)
     pd.DataFrame(results).to_excel(res_path, index=False)
-    results_to_template_df(results).to_excel(tpl_path, index=False)
+    template_df.to_excel(tpl_path, index=False)
     return res_path, tpl_path
 
 _VAR_RE = re.compile(r'\$\{[^}]*\}|\$[a-zA-Z_]\w*|\$\d+|\{[^}]*\}|</?[a-zA-Z][^>]*>')

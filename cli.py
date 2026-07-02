@@ -55,8 +55,8 @@ def main():
                            raw_dir=raw_dir, checkpoint_dir=ckpt_dir,
                            opts=opts)
 
-    save_outputs(results, out_dir)
-    print(f"\nDone. {len(results)} terms. Output: {out_dir} (results.xlsx + 候选术语_模板.xlsx)")
+    res_path, tpl_path = save_outputs(results, out_dir, profile_name=args.profile, source_path=args.source)
+    print(f"\nDone. {len(results)} terms. Output: {out_dir} ({res_path.name} + {tpl_path.name})")
     print(f"Total: {(time.time()-t0)/60:.1f}m")
 
 

@@ -2,12 +2,19 @@
 """Verify pipeline results -> unified 8-column annotation template (offline, no API)."""
 
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from core.main import results_to_template_df, TEMPLATE_COLUMNS
+from core.main import (
+    DEFAULT_TEMPLATE_FILENAME,
+    TEMPLATE_COLUMNS,
+    descriptive_template_filename,
+    results_to_template_df,
+    save_outputs,
+)
 
 RESULTS = [
     {"term": "墨门", "category": "门派势力", "source_text": "青长老说墨门弟子需恪守门规",
@@ -20,6 +27,23 @@ RESULTS = [
 ]
 
 df = results_to_template_df(RESULTS, timestamp="2026-06-11T12:00:00")
+
+with tempfile.TemporaryDirectory() as tmp:
+    res_path, tpl_path = save_outputs(
+        RESULTS,
+        tmp,
+        profile_name="yanyun",
+        source_path="【英】非重点内容 0630【global_pre】【国服0529版本NKC】.xlsx",
+        run_date="20260702",
+    )
+    saved_files = {p.name for p in Path(tmp).glob("*.xlsx")}
+    save_outputs_ok = (
+        res_path.name == "results.xlsx"
+        and tpl_path.name == "燕云_国服0529NKC_global_pre_非重点内容0630_候选术语标注表_20260702.xlsx"
+        and DEFAULT_TEMPLATE_FILENAME not in saved_files
+        and tpl_path.name in saved_files
+        and len(saved_files) == 2
+    )
 
 CASES = [
     ("column order matches template", list(df.columns) == TEMPLATE_COLUMNS),
@@ -36,6 +60,15 @@ CASES = [
     ("NaN/None -> empty string", df.loc[2, "来源原文"] == "" and df.loc[2, "术语译文"] == ""),
     ("empty results -> header-only df", list(results_to_template_df([]).columns) == TEMPLATE_COLUMNS),
     ("default timestamp ISO-like", "T" in results_to_template_df(RESULTS[:1]).loc[0, "最新修订时间"]),
+    ("descriptive template filename keeps project/batch/date",
+     descriptive_template_filename(
+         profile_name="yanyun",
+         source_path="【英】非重点内容 0630【global_pre】【国服0529版本NKC】.xlsx",
+         run_date="20260702",
+     ) == "燕云_国服0529NKC_global_pre_非重点内容0630_候选术语标注表_20260702.xlsx"),
+    ("descriptive template filename falls back to legacy default without context",
+     descriptive_template_filename() == DEFAULT_TEMPLATE_FILENAME),
+    ("save_outputs writes only results and the descriptive template when context exists", save_outputs_ok),
 ]
 
 n_pass = 0
