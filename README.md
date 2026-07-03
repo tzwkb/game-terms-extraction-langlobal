@@ -1,7 +1,10 @@
-# 游戏术语提取工具
+# Game Terms Extraction Tool
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.x-blue.svg)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-app-ff4b4b.svg)](https://streamlit.io/)
 
 English | [中文](README_ZH.md)
-
 
 ## Overview
 

@@ -1,7 +1,10 @@
 # 游戏术语提取工具
 
-[English](README.md) | 中文
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.x-blue.svg)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-app-ff4b4b.svg)](https://streamlit.io/)
 
+[English](README.md) | 中文
 
 从游戏中文文本中自动提取术语并翻译成英文，输出可直接交付的双语术语表 xlsx。
 
