@@ -1,37 +1,23 @@
 # 游戏术语提取工具
 
-[中文](README.md) | English
+中文 | [English](README.md)
 
-## Overview
 
- Game terminology extraction pipeline that uses an LLM to extract terms from Chinese game text and produce deliverable bilingual glossaries.
+从游戏中文文本中自动提取术语并翻译成英文，输出可直接交付的双语术语表 xlsx。
 
-## Key Capabilities
+## 快速启动
 
-- Identifies term candidates from game text.
-- Generates English renderings and glossary fields.
-- Outputs deliverable xlsx files.
+**Windows：双击 `run.bat`**（首次运行会自动安装 Python 和依赖）
 
-## Usage
-
- Prepare source text according to the README input format and run the extraction scripts.
-
-## Status
-
- This repository is maintained or used according to the current README notes.
-
-## Notes
-
- Terminology output should be reviewed by localization staff before delivery.
-
-## Command and Configuration Reference
-
-The following code blocks are preserved from the primary README. Commands, paths, and configuration keys are not translated; adjust them for the actual environment.
-
+手动启动：
 ```bash
 pip install -r requirements.txt
 streamlit run ui/app.py
 ```
+
+> 首次使用需配置 API Key，见 [部署指南](docs/DEPLOY.md)。
+
+## 工作流
 
 ```
 原文.xlsx + 术语表.xlsx
@@ -43,6 +29,14 @@ streamlit run ui/app.py
         ├─ results.xlsx（原始结果，含调试字段）
         └─ 候选术语_模板.xlsx（8列标注模板，含来源行 Key，审核状态=未审核）
 ```
+
+## 人工审校闭环（标注工具）
+
+提取结果不是终点：`候选术语_模板.xlsx` 导入配套的 **[术语标注助手](annotation/README.md)**（`annotation/术语标注助手_v3.0.html`，浏览器双击即用）做人工标注审核，导出的审定术语表可直接回流本工具作为下次提取的术语表输入。
+
+CLI 绑定源文件 Key 列用 `--key-col <列索引>`；UI 上传后自动识别，可手动改。
+
+## 目录结构
 
 ```
 ├── core/
@@ -68,6 +62,17 @@ streamlit run ui/app.py
 └── requirements.txt
 ```
 
-## Detailed Technical Notes
+## Profile 配置
 
-The primary README keeps the original technical details, history notes, full commands, and file layout. This file maintains the English version of the core documentation; consult the primary README code blocks and paths when exact commands are needed.
+每个游戏项目对应一个 `profiles/*.yaml`，控制提取规则、术语分类、翻译策略。
+
+- 在 UI「设置 → 高级设置」中上传 YAML 文件
+- 或直接放入 `profiles/` 目录后重启
+
+## 断点续跑
+
+任务中断后重新上传相同文件、选相同 profile，UI 会自动检测断点并从上次位置继续。
+
+## License
+
+[MIT](LICENSE)
