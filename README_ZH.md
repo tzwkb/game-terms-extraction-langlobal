@@ -1,6 +1,6 @@
 # 游戏术语提取工具
 
-中文 | [English](README.md)
+[English](README.md) | 中文
 
 
 从游戏中文文本中自动提取术语并翻译成英文，输出可直接交付的双语术语表 xlsx。
