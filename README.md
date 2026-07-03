@@ -1,5 +1,44 @@
 # 游戏术语提取工具
 
+<!-- bilingual-readme:start -->
+
+## 双语说明 / Bilingual Documentation
+
+> 本节提供整篇 README 的中英双语维护说明；下方保留原始详细说明、命令、路径和配置示例。
+> This section provides bilingual maintenance notes for the full README; the original detailed notes, commands, paths, and configuration examples are preserved below.
+
+### 中文
+
+**概览**：游戏术语提取流水线，使用 LLM 从中文游戏文本中提取术语并生成可交付的双语术语表。
+
+**主要能力**：
+- 从游戏文本中识别术语候选。
+- 生成英文译名和术语表字段。
+- 输出可交付的 xlsx 文件。
+
+**使用方式**：按 README 中的输入格式和脚本步骤准备源文本并运行提取流程。
+
+**状态**：该仓库仍按当前 README 的说明维护或使用。
+
+**注意事项**：术语结果应由本地化人员复核后交付。
+
+### English
+
+**Overview**: Game terminology extraction pipeline that uses an LLM to extract terms from Chinese game text and produce deliverable bilingual glossaries.
+
+**Key capabilities**:
+- Identifies term candidates from game text.
+- Generates English renderings and glossary fields.
+- Outputs deliverable xlsx files.
+
+**Usage**: Prepare source text according to the README input format and run the extraction scripts.
+
+**Status**: This repository is maintained or used according to the current README notes.
+
+**Notes**: Terminology output should be reviewed by localization staff before delivery.
+
+<!-- bilingual-readme:end -->
+
 从游戏中文文本中自动提取术语并翻译成英文，输出可直接交付的双语术语表 xlsx。
 
 ## 快速启动
